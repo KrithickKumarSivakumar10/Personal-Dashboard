@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Productivity Dashboard</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-primary: #1a1d29;
+            --bg-secondary: #252936;
+            --bg-card: #2d3142;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+            --accent-primary: #4c6ef5;
+            --accent-success: #51cf66;
+            --accent-warning: #ffd43b;
+            --accent-danger: #ff6b6b;
+            --accent-info: #22b8cf;
+            --border-color: #3d4253;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #151821 100%);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #364fc7 100%);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(76, 110, 245, 0.3);
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        .card-header {
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--accent-primary);
+            color: var(--text-primary);
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+        
+        .task-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .task-item:hover {
+            border-color: var(--accent-primary);
+            transform: translateX(5px);
+        }
+        
+        .task-item.completed {
+            opacity: 0.6;
+        }
+        
+        .task-item.completed .task-title {
+            text-decoration: line-through;
+        }
+        
+        .task-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            margin-right: 1rem;
+        }
+        
+        .task-content {
+            flex-grow: 1;
+        }
+        
+        .task-title {
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .task-schedule {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .task-category {
+            background: var(--accent-primary);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+        }
+        
+        .task-category.work { background: #4c6ef5; }
+        .task-category.health { background: #51cf66; }
+        .task-category.personal { background: #ffd43b; color: #333; }
+        
+        .task-recurrence {
+            background: var(--accent-info);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+        
+        .task-recurrence.daily { background: #22b8cf; }
+        .task-recurrence.weekly { background: #15aabf; }
+        .task-recurrence.monthly { background: #1098ad; }
+        .task-recurrence.yearly { background: #0c8599; }
+        .task-recurrence.none { background: #868e96; }
+        
+        .btn-delete {
+            background: var(--accent-danger);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-delete:hover {
+            background: #fa5252;
+            transform: scale(1.05);
+        }
+        
+        .btn-primary {
+            background: var(--accent-primary);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: #364fc7;
+            transform: scale(1.05);
+        }
+        
+        .btn-warning {
+            background: var(--accent-warning);
+            border: none;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .btn-warning:hover {
+            background: #fcc419;
+        }
+        
+        .btn-info {
+            background: var(--accent-info);
+            border: none;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #15aabf;
+        }
+        
+        .form-control, .form-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 10px;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background: var(--bg-secondary);
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.25rem rgba(76, 110, 245, 0.25);
+        }
+        
+        .form-label {
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-success);
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .modal-content {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .modal-footer {
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .recurrence-input-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="dashboard-header text-center">
+            <h1 class="mb-2"><i class="fas fa-chart-line"></i> Personal Productivity Dashboard</h1>
+            <p class="mb-0">Track your tasks with flexible scheduling - daily, weekly, monthly, or yearly</p>
+        </div>
+        
+        <div class="row">
+            <!-- Task Management Section -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-tasks"></i> My Tasks</span>
+                        <div>
+                            <button class="btn btn-info btn-sm me-2" onclick="checkResets()">
+                                <i class="fas fa-sync"></i> Check Resets
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="resetDay()">
+                                <i class="fas fa-redo"></i> Reset Daily
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Add Task Form -->
+                        <div class="mb-4">
+                            <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                                <i class="fas fa-plus"></i> Add New Task
+                            </button>
+                        </div>
+                        
+                        <!-- Task List -->
+                        <div id="taskList">
+                            <!-- Tasks will be loaded here dynamically -->
+                        </div>
+                        
+                        <div id="emptyState" class="text-center py-5" style="display: none;">
+                            <i class="fas fa-clipboard-list fa-3x text-secondary mb-3"></i>
+                            <p class="text-secondary">No tasks yet. Add your first task to get started!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Section -->
+            <div class="col-lg-6 mb-4">
+                <!-- Today's Progress -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie"></i> Current Progress
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="stat-card">
+                                    <div class="stat-number" id="completedCount">0</div>
+                                    <div class="stat-label">Completed</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="stat-card">
+                                    <div class="stat-number" id="totalCount">0</div>
+                                    <div class="stat-label">Total Tasks</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recurrence Breakdown -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-calendar-alt"></i> Task Schedule Types
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="recurrenceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Weekly Consistency -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-calendar-week"></i> 7-Day Consistency
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="weeklyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Add New Task</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="modalTaskInput" class="form-label">Task Description</label>
+                        <input type="text" id="modalTaskInput" class="form-control" placeholder="Enter task description...">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modalCategorySelect" class="form-label">Category</label>
+                        <select id="modalCategorySelect" class="form-select">
+                            <option value="Personal">Personal</option>
+                            <option value="Work">Work</option>
+                            <option value="Health">Health</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modalRecurrenceType" class="form-label">Schedule Type</label>
+                        <select id="modalRecurrenceType" class="form-select" onchange="updateRecurrenceInput()">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="none">One-time (No repeat)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="recurrenceValueGroup">
+                        <label for="modalRecurrenceValue" class="form-label">Repeat Every</label>
+                        <div class="recurrence-input-group">
+                            <input type="number" id="modalRecurrenceValue" class="form-control" value="1" min="1" max="365">
+                            <span id="recurrenceUnit" class="text-secondary">day(s)</span>
+                        </div>
+                        <small class="text-secondary">Example: "2" = every 2 days, "3" = every 3 weeks, etc.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addTaskFromModal()">
+                        <i class="fas fa-check"></i> Add Task
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables for charts
+        let categoryChart = null;
+        let weeklyChart = null;
+        let recurrenceChart = null;
+        
+        // Load tasks when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTasks();
+            loadWeeklyStats();
+            loadCategoryStats();
+            loadRecurrenceStats();
+        });
+        
+        // Update recurrence input based on type
+        function updateRecurrenceInput() {
+            const type = document.getElementById('modalRecurrenceType').value;
+            const valueGroup = document.getElementById('recurrenceValueGroup');
+            const unit = document.getElementById('recurrenceUnit');
+            
+            if (type === 'none') {
+                valueGroup.style.display = 'none';
+            } else {
+                valueGroup.style.display = 'block';
+                const units = {
+                    'daily': 'day(s)',
+                    'weekly': 'week(s)',
+                    'monthly': 'month(s)',
+                    'yearly': 'year(s)'
+                };
+                unit.textContent = units[type] || 'day(s)';
+            }
+        }
+        
+        // Add task from modal
+        async function addTaskFromModal() {
+            const title = document.getElementById('modalTaskInput').value.trim();
+            const category = document.getElementById('modalCategorySelect').value;
+            const recurrenceType = document.getElementById('modalRecurrenceType').value;
+            const recurrenceValue = parseInt(document.getElementById('modalRecurrenceValue').value);
+            
+            if (!title) {
+                alert('Please enter a task description');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        category: category,
+                        recurrence_type: recurrenceType,
+                        recurrence_value: recurrenceValue
+                    })
+                });
+                
+                if (response.ok) {
+                    // Reset form
+                    document.getElementById('modalTaskInput').value = '';
+                    document.getElementById('modalRecurrenceValue').value = '1';
+                    
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('addTaskModal')).hide();
+                    
+                    // Reload data
+                    loadTasks();
+                    loadCategoryStats();
+                    loadRecurrenceStats();
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+                alert('Failed to add task');
+            }
+        }
+        
+        // Format recurrence display text
+        function formatRecurrence(type, value) {
+            if (type === 'none') return 'One-time task';
+            
+            const units = {
+                'daily': 'day',
+                'weekly': 'week',
+                'monthly': 'month',
+                'yearly': 'year'
+            };
+            
+            const unit = units[type] || 'day';
+            return value === 1 ? `Every ${unit}` : `Every ${value} ${unit}s`;
+        }
+        
+        // Load all tasks
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/tasks');
+                const tasks = await response.json();
+                
+                const taskList = document.getElementById('taskList');
+                const emptyState = document.getElementById('emptyState');
+                
+                if (tasks.length === 0) {
+                    taskList.innerHTML = '';
+                    emptyState.style.display = 'block';
+                    updateTodayStats(0, 0);
+                    return;
+                }
+                
+                emptyState.style.display = 'none';
+                
+                // Calculate completion stats
+                const completed = tasks.filter(t => t.is_completed).length;
+                updateTodayStats(completed, tasks.length);
+                
+                // Render tasks
+                taskList.innerHTML = tasks.map(task => `
+                    <div class="task-item ${task.is_completed ? 'completed' : ''}">
+                        <input type="checkbox" class="task-checkbox" 
+                               ${task.is_completed ? 'checked' : ''} 
+                               onchange="toggleTask(${task.id}, this.checked)">
+                        <div class="task-content">
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            <div class="task-schedule">
+                                <i class="fas fa-calendar-alt"></i> ${formatRecurrence(task.recurrence_type, task.recurrence_value)}
+                            </div>
+                        </div>
+                        <span class="task-recurrence ${task.recurrence_type}">${task.recurrence_type}</span>
+                        <span class="task-category ${task.category.toLowerCase()}">${task.category}</span>
+                        <button class="btn-delete" onclick="deleteTask(${task.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+        
+        // Toggle task completion
+        async function toggleTask(taskId, isCompleted) {
+            try {
+                await fetch(`/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        is_completed: isCompleted
+                    })
+                });
+                
+                loadTasks();
+            } catch (error) {
+                console.error('Error toggling task:', error);
+            }
+        }
+        
+        // Delete a task
+        async function deleteTask(taskId) {
+            if (!confirm('Are you sure you want to delete this task?')) {
+                return;
+            }
+            
+            try {
+                await fetch(`/api/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                loadTasks();
+                loadCategoryStats();
+                loadRecurrenceStats();
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
+        }
+        
+        // Reset daily tasks
+        async function resetDay() {
+            if (!confirm('This will uncheck all daily tasks. Continue?')) {
+                return;
+            }
+            
+            try {
+                await fetch('/api/reset-day', {
+                    method: 'POST'
+                });
+                
+                loadTasks();
+            } catch (error) {
+                console.error('Error resetting day:', error);
+            }
+        }
+        
+        // Check and reset tasks based on their schedule
+        async function checkResets() {
+            try {
+                await fetch('/api/check-resets', {
+                    method: 'POST'
+                });
+                
+                loadTasks();
+                alert('Tasks checked! Any overdue recurring tasks have been reset.');
+            } catch (error) {
+                console.error('Error checking resets:', error);
+            }
+        }
+        
+        // Update today's stats
+        function updateTodayStats(completed, total) {
+            document.getElementById('completedCount').textContent = completed;
+            document.getElementById('totalCount').textContent = total;
+        }
+        
+        // Load weekly stats and render chart
+        async function loadWeeklyStats() {
+            try {
+                const response = await fetch('/api/stats/weekly');
+                const stats = await response.json();
+                
+                const ctx = document.getElementById('weeklyChart').getContext('2d');
+                
+                if (weeklyChart) {
+                    weeklyChart.destroy();
+                }
+                
+                weeklyChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: stats.map(s => s.date),
+                        datasets: [{
+                            label: 'Completion %',
+                            data: stats.map(s => s.percentage),
+                            borderColor: '#51cf66',
+                            backgroundColor: 'rgba(81, 207, 102, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 7
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#e9ecef'
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    color: '#adb5bd',
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#adb5bd'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading weekly stats:', error);
+            }
+        }
+        
+        // Load category stats and render chart
+        async function loadCategoryStats() {
+            try {
+                const response = await fetch('/api/stats/categories');
+                const stats = await response.json();
+                
+                const ctx = document.getElementById('categoryChart').getContext('2d');
+                
+                if (categoryChart) {
+                    categoryChart.destroy();
+                }
+                
+                const colors = {
+                    'Work': '#4c6ef5',
+                    'Health': '#51cf66',
+                    'Personal': '#ffd43b'
+                };
+                
+                categoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: stats.map(s => s.category),
+                        datasets: [{
+                            data: stats.map(s => s.count),
+                            backgroundColor: stats.map(s => colors[s.category] || '#868e96'),
+                            borderColor: '#2d3142',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: '#e9ecef',
+                                    padding: 15
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading category stats:', error);
+            }
+        }
+        
+        // Load recurrence stats and render chart
+        async function loadRecurrenceStats() {
+            try {
+                const response = await fetch('/api/stats/recurrence');
+                const stats = await response.json();
+                
+                const ctx = document.getElementById('recurrenceChart').getContext('2d');
+                
+                if (recurrenceChart) {
+                    recurrenceChart.destroy();
+                }
+                
+                const colors = {
+                    'daily': '#22b8cf',
+                    'weekly': '#15aabf',
+                    'monthly': '#1098ad',
+                    'yearly': '#0c8599',
+                    'none': '#868e96'
+                };
+                
+                recurrenceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: stats.map(s => s.type.charAt(0).toUpperCase() + s.type.slice(1)),
+                        datasets: [{
+                            label: 'Number of Tasks',
+                            data: stats.map(s => s.count),
+                            backgroundColor: stats.map(s => colors[s.type] || '#868e96'),
+                            borderColor: '#2d3142',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    color: '#adb5bd',
+                                    stepSize: 1
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    color: '#adb5bd'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading recurrence stats:', error);
+            }
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
