@@ -1,191 +1,318 @@
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
-from models import db, Task
-from sqlalchemy import func
+import sqlite3
+import json
+import os
 
 app = Flask(__name__)
+DATABASE = 'instance/tasks.db'
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+def get_db():
+    """Get database connection"""
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    """Initialize database with tables"""
+    if not os.path.exists('instance'):
+        os.makedirs('instance')
+    
+    # Delete old database if it exists
+    if os.path.exists(DATABASE):
+        try:
+            os.remove(DATABASE)
+            print(f"Deleted old database: {DATABASE}")
+        except Exception as e:
+            print(f"Could not delete database: {e}")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Create tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY,
+            duration INTEGER DEFAULT 30,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            color TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS completions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id TEXT NOT NULL,
+            day_index INTEGER NOT NULL,
+            status INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (task_id) REFERENCES tasks(id),
+            UNIQUE(task_id, day_index)
+        )
+    ''')
+    
+    # Initialize default settings
+    cursor.execute('SELECT COUNT(*) as count FROM settings')
+    if cursor.fetchone()['count'] == 0:
+        cursor.execute('INSERT INTO settings (duration) VALUES (30)')
+    
+    conn.commit()
+    conn.close()
+    print("Database initialized successfully!")
 
 # Initialize database
-db.init_app(app)
-
-# Create tables before first request
-with app.app_context():
-    db.create_all()
-
-def check_and_reset_tasks():
-    """Check all tasks and reset those that need to be reset based on their recurrence"""
-    now = datetime.now()
-    tasks = Task.query.all()
-    
-    for task in tasks:
-        if task.recurrence_type == 'none':
-            continue
-            
-        # Calculate when the task should reset
-        time_diff = now - task.last_reset
-        should_reset = False
-        
-        if task.recurrence_type == 'daily':
-            should_reset = time_diff.days >= task.recurrence_value
-        elif task.recurrence_type == 'weekly':
-            should_reset = time_diff.days >= (task.recurrence_value * 7)
-        elif task.recurrence_type == 'monthly':
-            # Approximate: 30 days per month
-            should_reset = time_diff.days >= (task.recurrence_value * 30)
-        elif task.recurrence_type == 'yearly':
-            # Approximate: 365 days per year
-            should_reset = time_diff.days >= (task.recurrence_value * 365)
-        
-        if should_reset:
-            task.is_completed = False
-            task.last_reset = now
-    
-    db.session.commit()
+init_db()
 
 @app.route('/')
 def index():
-    """Render the main dashboard page"""
     return render_template('index.html')
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Fetch duration setting"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT duration FROM settings ORDER BY id DESC LIMIT 1')
+    row = cursor.fetchone()
+    conn.close()
+    
+    duration = row['duration'] if row else 30
+    return jsonify({'duration': duration})
+
+@app.route('/api/settings', methods=['POST'])
+def update_settings():
+    """Update duration setting"""
+    data = request.json
+    duration = data.get('duration', 30)
+    
+    if duration < 7 or duration > 365:
+        return jsonify({'error': 'Duration must be between 7 and 365 days'}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE settings SET duration = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1', (duration,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'duration': duration}), 200
 
 @app.route('/api/tasks', methods=['GET'])
 def get_tasks():
-    """Get all active tasks (check and reset recurring ones first)"""
-    check_and_reset_tasks()
-    
-    # Get all tasks ordered by creation date
-    tasks = Task.query.order_by(Task.date_created.desc()).all()
-    
-    return jsonify([task.to_dict() for task in tasks])
+    """Fetch all tasks"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM tasks ORDER BY created_at DESC')
+    tasks = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return jsonify(tasks)
 
 @app.route('/api/tasks', methods=['POST'])
 def add_task():
-    """Add a new task with recurrence options"""
+    """Add a new task"""
     data = request.json
+    task_id = str(int(datetime.now().timestamp() * 1000))
     
-    new_task = Task(
-        title=data['title'],
-        category=data.get('category', 'Personal'),
-        is_completed=False,
-        date_created=datetime.now(),
-        recurrence_type=data.get('recurrence_type', 'daily'),
-        recurrence_value=data.get('recurrence_value', 1),
-        last_reset=datetime.now()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO tasks (id, name, color) VALUES (?, ?, ?)',
+        (task_id, data.get('name'), data.get('color'))
     )
+    conn.commit()
+    conn.close()
     
-    db.session.add(new_task)
-    db.session.commit()
-    
-    return jsonify(new_task.to_dict()), 201
+    return jsonify({
+        'id': task_id,
+        'name': data.get('name'),
+        'color': data.get('color'),
+        'created_at': datetime.now().isoformat()
+    }), 201
 
-@app.route('/api/tasks/<int:task_id>', methods=['PUT'])
-def update_task(task_id):
-    """Toggle task completion status or update recurrence"""
-    task = Task.query.get_or_404(task_id)
-    data = request.json
-    
-    if 'is_completed' in data:
-        task.is_completed = data['is_completed']
-    
-    if 'recurrence_type' in data:
-        task.recurrence_type = data['recurrence_type']
-    
-    if 'recurrence_value' in data:
-        task.recurrence_value = data['recurrence_value']
-    
-    db.session.commit()
-    
-    return jsonify(task.to_dict())
-
-@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+@app.route('/api/tasks/<task_id>', methods=['DELETE'])
 def delete_task(task_id):
     """Delete a task"""
-    task = Task.query.get_or_404(task_id)
-    db.session.delete(task)
-    db.session.commit()
+    conn = get_db()
+    cursor = conn.cursor()
     
-    return jsonify({'message': 'Task deleted successfully'}), 200
+    cursor.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
+    cursor.execute('DELETE FROM completions WHERE task_id = ?', (task_id,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'status': 'deleted'}), 200
 
-@app.route('/api/stats/weekly', methods=['GET'])
-def get_weekly_stats():
-    """Get completion stats for the last 7 days"""
-    stats = []
+@app.route('/api/completions', methods=['GET'])
+def get_completions():
+    """Fetch all completions"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT task_id, day_index, status FROM completions')
+    rows = cursor.fetchall()
+    conn.close()
     
-    for i in range(6, -1, -1):
-        date = datetime.now().date() - timedelta(days=i)
+    completions = {}
+    for row in rows:
+        key = f"{row['task_id']}-{row['day_index']}"
+        completions[key] = bool(row['status'])
+    
+    return jsonify(completions)
+
+@app.route('/api/completions/<task_id>/<int:day_index>', methods=['POST'])
+def toggle_completion(task_id, day_index):
+    """Toggle completion status for a task on a specific day"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Check if completion exists
+    cursor.execute(
+        'SELECT status FROM completions WHERE task_id = ? AND day_index = ?',
+        (task_id, day_index)
+    )
+    row = cursor.fetchone()
+    
+    if row:
+        new_status = 1 if row['status'] == 0 else 0
+        cursor.execute(
+            'UPDATE completions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE task_id = ? AND day_index = ?',
+            (new_status, task_id, day_index)
+        )
+    else:
+        cursor.execute(
+            'INSERT INTO completions (task_id, day_index, status) VALUES (?, ?, ?)',
+            (task_id, day_index, 1)
+        )
+    
+    conn.commit()
+    
+    # Get updated status
+    cursor.execute(
+        'SELECT status FROM completions WHERE task_id = ? AND day_index = ?',
+        (task_id, day_index)
+    )
+    result = cursor.fetchone()
+    conn.close()
+    
+    key = f"{task_id}-{day_index}"
+    status = bool(result['status']) if result else False
+    
+    return jsonify({'key': key, 'status': status}), 200
+
+@app.route('/api/stats/<task_id>', methods=['GET'])
+def get_stats(task_id):
+    """Get completion stats for a task"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get duration
+    cursor.execute('SELECT duration FROM settings ORDER BY id DESC LIMIT 1')
+    duration_row = cursor.fetchone()
+    duration = duration_row['duration'] if duration_row else 30
+    
+    # Get completed count
+    cursor.execute(
+        'SELECT COUNT(*) as completed FROM completions WHERE task_id = ? AND status = 1',
+        (task_id,)
+    )
+    completed = cursor.fetchone()['completed']
+    conn.close()
+    
+    percentage = (completed / duration * 100) if duration > 0 else 0
+    
+    return jsonify({
+        'completed': completed,
+        'total': duration,
+        'percentage': int(percentage)
+    })
+
+@app.route('/api/progress-data/<task_id>', methods=['GET'])
+def get_progress_data(task_id):
+    """Get daily progress data for bar graph"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get duration
+    cursor.execute('SELECT duration FROM settings ORDER BY id DESC LIMIT 1')
+    duration_row = cursor.fetchone()
+    duration = duration_row['duration'] if duration_row else 30
+    
+    days = []
+    completions_count = []
+    
+    for i in range(duration):
+        cursor.execute(
+            'SELECT status FROM completions WHERE task_id = ? AND day_index = ?',
+            (task_id, i)
+        )
+        row = cursor.fetchone()
+        completions_count.append(1 if row and row['status'] else 0)
         
-        # Get all tasks that were active on this date
-        total_tasks = Task.query.filter(
-            Task.date_created <= datetime.combine(date, datetime.max.time())
-        ).count()
+        date = datetime.now() - timedelta(days=(duration - 1 - i))
+        days.append(date.strftime('%m/%d'))
+    
+    conn.close()
+    
+    return jsonify({
+        'days': days,
+        'completions': completions_count
+    })
+
+@app.route('/api/overall-progress', methods=['GET'])
+def get_overall_progress():
+    """Get overall progress data for line graph"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get duration
+    cursor.execute('SELECT duration FROM settings ORDER BY id DESC LIMIT 1')
+    duration_row = cursor.fetchone()
+    duration = duration_row['duration'] if duration_row else 30
+    
+    # Get all tasks
+    cursor.execute('SELECT id FROM tasks')
+    tasks = [row['id'] for row in cursor.fetchall()]
+    
+    days = []
+    daily_completion_rates = []
+    
+    if not tasks:
+        conn.close()
+        return jsonify({'days': [], 'rates': []})
+    
+    for i in range(duration):
+        total_completions = 0
+        total_tasks = len(tasks)
         
-        # Get completed tasks - this is an approximation
-        # In a real app, you'd want to track completion history
-        completed_tasks = Task.query.filter(
-            Task.date_created <= datetime.combine(date, datetime.max.time()),
-            Task.is_completed == True
-        ).count()
+        for task_id in tasks:
+            cursor.execute(
+                'SELECT status FROM completions WHERE task_id = ? AND day_index = ? AND status = 1',
+                (task_id, i)
+            )
+            if cursor.fetchone():
+                total_completions += 1
         
-        # Calculate percentage
-        percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        completion_rate = (total_completions / total_tasks * 100) if total_tasks > 0 else 0
+        daily_completion_rates.append(round(completion_rate, 1))
         
-        stats.append({
-            'date': date.strftime('%m/%d'),
-            'percentage': round(percentage, 1),
-            'total': total_tasks,
-            'completed': completed_tasks
-        })
+        date = datetime.now() - timedelta(days=(duration - 1 - i))
+        days.append(date.strftime('%m/%d'))
     
-    return jsonify(stats)
-
-@app.route('/api/stats/categories', methods=['GET'])
-def get_category_stats():
-    """Get task breakdown by category"""
-    # Query tasks grouped by category
-    categories = db.session.query(
-        Task.category,
-        func.count(Task.id).label('count')
-    ).group_by(Task.category).all()
+    conn.close()
     
-    return jsonify([{
-        'category': cat[0],
-        'count': cat[1]
-    } for cat in categories])
-
-@app.route('/api/stats/recurrence', methods=['GET'])
-def get_recurrence_stats():
-    """Get task breakdown by recurrence type"""
-    recurrence = db.session.query(
-        Task.recurrence_type,
-        func.count(Task.id).label('count')
-    ).group_by(Task.recurrence_type).all()
-    
-    return jsonify([{
-        'type': rec[0],
-        'count': rec[1]
-    } for rec in recurrence])
-
-@app.route('/api/reset-day', methods=['POST'])
-def reset_day():
-    """Manually reset all daily tasks"""
-    Task.query.filter(
-        Task.recurrence_type == 'daily'
-    ).update({'is_completed': False, 'last_reset': datetime.now()})
-    
-    db.session.commit()
-    
-    return jsonify({'message': 'Daily tasks reset successfully'})
-
-@app.route('/api/check-resets', methods=['POST'])
-def manual_check_resets():
-    """Manually trigger the automatic reset check"""
-    check_and_reset_tasks()
-    return jsonify({'message': 'Tasks checked and reset as needed'})
+    return jsonify({
+        'days': days,
+        'rates': daily_completion_rates
+    })
 
 if __name__ == '__main__':
-    # Run the Flask development server
-    # For production, use a WSGI server like Gunicorn
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True)
