@@ -7,22 +7,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-            color: #e2e8f0;
-            min-height: 100vh;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); color: #e2e8f0; min-height: 100vh; }
         .wrapper { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
         .sidebar { background: #0f172a; border-right: 1px solid #334155; padding: 1.5rem 1rem; }
         .logo { font-size: 1rem; font-weight: 700; color: #3b82f6; margin-bottom: 2rem; }
         .nav { display: flex; flex-direction: column; gap: 0.5rem; }
-        .nav button { padding: 0.75rem 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; text-align: left; border-radius: 0.375rem; transition: all 0.2s; }
-        .nav button:hover, .nav button.active { background: #3b82f6; color: white; }
+        .nav button { padding: 0.75rem 1rem; background: none; border: none; color: #94a3b8; cursor: pointer; text-align: left; border-radius: 0.375rem; }
+        .nav button.active { background: #3b82f6; color: white; }
         .main { padding: 2rem; overflow-y: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .header { margin-bottom: 1.5rem; }
         .title { font-size: 1.8rem; font-weight: 700; }
-        .quote-box { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 0.75rem; padding: 1.5rem; text-align: center; margin-bottom: 2rem; min-height: 80px; display: flex; flex-direction: column; justify-content: center; }
+        .quote-box { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 0.75rem; padding: 1.5rem; text-align: center; margin-bottom: 2rem; }
         .quote-text { font-size: 1.1rem; font-weight: 500; margin-bottom: 0.5rem; }
         .quote-author { font-size: 0.9rem; opacity: 0.9; font-style: italic; }
         .top { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
@@ -31,7 +26,6 @@
         .task-input { width: 100%; background: #0f172a; border: 1px solid #475569; color: #e2e8f0; padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 1rem; }
         .colors { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
         .color { width: 2.25rem; height: 2.25rem; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
-        .color:hover { transform: scale(1.1); }
         .color.active { border-color: white; transform: scale(1.15); }
         .btn-add { width: 100%; background: #16a34a; color: white; border: none; padding: 0.75rem; border-radius: 0.375rem; cursor: pointer; font-weight: 600; }
         .btn-add:hover { background: #15803d; }
@@ -50,11 +44,10 @@
         .task-name { display: flex; align-items: center; gap: 0.75rem; }
         .dot { width: 0.75rem; height: 0.75rem; border-radius: 0.15rem; }
         .check { width: 1.75rem; height: 1.75rem; border: none; background: #334155; color: #94a3b8; border-radius: 0.25rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
-        .check:hover:not(:disabled) { transform: scale(1.05); }
+        .check:hover { transform: scale(1.05); }
         .check.done { color: white; }
         .check:disabled { cursor: not-allowed; opacity: 0.5; }
         .del-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1rem; }
-        .del-btn:hover { color: #dc2626; }
         .footer { text-align: center; padding: 2rem; color: #64748b; border-top: 1px solid #334155; margin-top: 2rem; }
         .footer a { color: #3b82f6; text-decoration: none; }
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; }
@@ -66,9 +59,7 @@
         .modal-btn { padding: 0.75rem 1.5rem; border: none; border-radius: 0.375rem; cursor: pointer; font-weight: 600; }
         .btn-cancel { background: #334155; color: #e2e8f0; }
         .btn-delete { background: #ef4444; color: white; }
-        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #16a34a; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; z-index: 2000; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @media (max-width: 768px) { .wrapper { grid-template-columns: 1fr; } .sidebar { display: none; } .top { grid-template-columns: 1fr; } }
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #16a34a; color: white; padding: 1rem 1.5rem; border-radius: 0.5rem; z-index: 2000; }
     </style>
 </head>
 <body>
@@ -122,10 +113,10 @@
         </main>
     </div>
 
-    <div class="modal" id="modal" style="display: none;">
+    <div class="modal" id="modal">
         <div class="modal-box">
             <div class="modal-title">Set Task Duration</div>
-            <div class="modal-text">Choose date range for this task:</div>
+            <div class="modal-text">Choose date range:</div>
             <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
                 <div>
                     <label style="color: #94a3b8;">From:</label>
@@ -143,7 +134,7 @@
         </div>
     </div>
 
-    <div class="modal" id="deleteModal" style="display: none;">
+    <div class="modal" id="deleteModal">
         <div class="modal-box">
             <div class="modal-title">Delete Task?</div>
             <div class="modal-text">This cannot be undone.</div>
@@ -196,11 +187,21 @@
         }
 
         async function loadAll() {
-            const t1 = await fetch('/api/tasks');
-            tasks = await t1.json();
-            const t2 = await fetch('/api/completions');
-            completions = await t2.json();
-            render();
+            try {
+                const t1 = await fetch('/api/tasks');
+                tasks = await t1.json();
+                const t2 = await fetch('/api/completions');
+                completions = await t2.json();
+                const t3 = await fetch('/api/task-durations');
+                const durData = await t3.json();
+                taskDurations = durData;
+                console.log('Tasks:', tasks);
+                console.log('Completions:', completions);
+                console.log('Task Durations:', taskDurations);
+                render();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
         }
 
         function render() {
@@ -230,15 +231,28 @@
             const s = new Date(start);
             const e = new Date(end);
             if (s > e) return alert('Start before end');
-            const res = await fetch('/api/tasks', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,color:selectedColor})});
-            if (res.ok) {
-                const task = await res.json();
-                const days = Math.ceil((e-s)/(1000*60*60*24))+1;
-                taskDurations[task.id] = {start,end,duration:days};
-                document.getElementById('taskName').value = '';
-                closeModal();
-                loadAll();
-                toast('✅ Task added!');
+            const days = Math.ceil((e-s)/(1000*60*60*24))+1;
+            
+            try {
+                const res = await fetch('/api/tasks', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({name, color:selectedColor, duration:days, start_date:start, end_date:end})
+                });
+                
+                if (res.ok) {
+                    const task = await res.json();
+                    taskDurations[task.id] = {start_date:start, end_date:end, duration:days};
+                    document.getElementById('taskName').value = '';
+                    closeModal();
+                    loadAll();
+                    toast('✅ Task added!');
+                } else {
+                    alert('Error adding task');
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+                alert('Error adding task');
             }
         }
 
@@ -260,23 +274,22 @@
         }
 
         async function confirmDelete() {
-            await fetch(`/api/tasks/${deleteId}`, {method:'DELETE'});
-            closeDelete();
-            loadAll();
-            toast('Deleted!');
-        }
-
-        async function toggle(id, i) {
-            await fetch(`/api/completions/${id}/${i}`, {method:'POST'});
-            loadAll();
+            try {
+                await fetch(`/api/tasks/${deleteId}`, {method:'DELETE'});
+                closeDelete();
+                loadAll();
+                toast('Deleted!');
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
         }
 
         function getDays(taskId) {
             const days = [];
             let start = new Date(), end = new Date();
-            if (taskId && taskDurations[taskId]) {
-                start = new Date(taskDurations[taskId].start);
-                end = new Date(taskDurations[taskId].end);
+            if (taskId && taskDurations && taskDurations[taskId]) {
+                start = new Date(taskDurations[taskId].start_date + 'T00:00:00');
+                end = new Date(taskDurations[taskId].end_date + 'T00:00:00');
             } else {
                 start.setDate(start.getDate() - 29);
             }
@@ -291,36 +304,106 @@
         function renderTable() {
             if (!tasks.length) {
                 document.getElementById('thead').innerHTML = '<tr><th>Habit</th><th>Progress</th></tr>';
-                document.getElementById('tbody').innerHTML = '<tr><td colspan="35" style="text-align:center;color:#94a3b8">No tasks</td></tr>';
+                document.getElementById('tbody').innerHTML = '<tr><td colspan="35">No tasks</td></tr>';
                 return;
             }
-            let body = '';
-            const today = new Date();
-            today.setHours(0,0,0,0);
+            
+            // Find the task with the earliest start date and longest range
+            let earliestDate = new Date();
+            let longestTaskId = tasks[0].id;
+            let longestDuration = 0;
+            
             tasks.forEach(t => {
-                const days = getDays(t.id);
-                const done = Object.entries(completions).filter(([k,v]) => k.startsWith(t.id+'-') && v).length;
                 const dur = taskDurations[t.id]?.duration || 30;
-                body += `<tr><td><div class="task-name"><div class="dot" style="background:${t.color}"></div>${t.name}</div></td><td style="text-align:center;font-weight:600">${done}/${dur}</td>`;
-                days.forEach((d,i) => {
-                    const key = t.id+'-'+i;
-                    const checked = completions[key];
-                    const isFuture = new Date(d) > today;
-                    body += `<td style="text-align:center"><button class="check${checked?' done':''}" type="button" style="${checked?`background:${t.color}`:''};${isFuture?'opacity:0.5':''}" onclick="${isFuture?'':'toggle(\''+t.id+'\','+i+')'}" ${isFuture?'disabled':''}>${checked?'✓':'○'}</button></td>`;
-                });
-                body += `<td><button type="button" class="del-btn" onclick="openDelete('${t.id}')">🗑️</button></td></tr>`;
+                const startStr = taskDurations[t.id]?.start_date;
+                if (startStr) {
+                    const startDate = new Date(startStr + 'T00:00:00');
+                    if (startDate < earliestDate) {
+                        earliestDate = startDate;
+                    }
+                }
+                if (dur > longestDuration) {
+                    longestDuration = dur;
+                    longestTaskId = t.id;
+                }
             });
-            document.getElementById('tbody').innerHTML = body;
-            const days = getDays(tasks[0].id);
-            let head = '<tr><th>Habit</th><th>Progress</th>';
-            days.forEach(d => {
+            
+            // Get header days starting from earliest date
+            let headerDays = [];
+            let cur = new Date(earliestDate);
+            for (let i = 0; i < longestDuration; i++) {
+                headerDays.push(new Date(cur));
+                cur.setDate(cur.getDate() + 1);
+            }
+            
+            if (!headerDays.length) return;
+            
+            // Build header
+            let head = '<tr><th>Habit</th><th style="text-align:center">Progress</th>';
+            headerDays.forEach(d => {
                 const date = d.getDate();
                 const week = d.toLocaleDateString('en-US',{weekday:'short'}).charAt(0);
                 const month = d.toLocaleDateString('en-US',{month:'short'});
-                head += `<th style="text-align:center;font-size:0.8rem"><strong>${date}</strong><br>${week}<br><span style="color:#64748b;font-size:0.7rem">${month}</span></th>`;
+                head += `<th style="text-align:center;font-size:0.8rem"><strong>${date}</strong><br>${week}<br><span style="color:#64748b">${month}</span></th>`;
             });
             head += '<th></th></tr>';
             document.getElementById('thead').innerHTML = head;
+            
+            let body = '';
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            tasks.forEach(t => {
+                const startStr = taskDurations[t.id]?.start_date;
+                const startDate = startStr ? new Date(startStr + 'T00:00:00') : new Date(earliestDate);
+                const taskDays = getDays(t.id);
+                const done = Object.entries(completions).filter(([k,v]) => k.startsWith(t.id+'-') && v).length;
+                const dur = taskDurations[t.id]?.duration || 30;
+                
+                // Calculate offset: how many days from earliest date to this task's start
+                const offset = Math.floor((startDate - earliestDate) / (1000*60*60*24));
+                
+                body += `<tr><td><div class="task-name"><div class="dot" style="background:${t.color}"></div>${t.name}</div></td><td style="text-align:center;font-weight:600">${done}/${dur}</td>`;
+                
+                // Show checkboxes aligned to correct dates
+                for (let i = 0; i < headerDays.length; i++) {
+                    const dayIndex = i - offset; // Which day within this task
+                    
+                    if (dayIndex >= 0 && dayIndex < taskDays.length) {
+                        const key = t.id+'-'+dayIndex;
+                        const checked = completions[key];
+                        const isFuture = new Date(headerDays[i]) > today;
+                        const bgStyle = checked ? `background:${t.color};` : '';
+                        if (isFuture) {
+                            body += `<td style="text-align:center"><button class="check${checked?' done':''}" style="${bgStyle}opacity:0.5;" disabled>${checked?'✓':'○'}</button></td>`;
+                        } else {
+                            body += `<td style="text-align:center"><button class="check${checked?' done':''}" style="${bgStyle}" onclick="window.toggleDay('${t.id}',${dayIndex})">${checked?'✓':'○'}</button></td>`;
+                        }
+                    } else {
+                        // Day is outside this task's range
+                        body += `<td style="text-align:center">-</td>`;
+                    }
+                }
+                body += `<td><button class="del-btn" onclick="openDelete('${t.id}')">🗑️</button></td></tr>`;
+            });
+            document.getElementById('tbody').innerHTML = body;
+        }
+
+        window.toggleDay = async function(taskId, dayIndex) {
+            console.log(`Toggling ${taskId} - Day ${dayIndex}`);
+            try {
+                const res = await fetch(`/api/completions/${taskId}/${dayIndex}`, {method:'POST'});
+                if (res.ok) {
+                    console.log('Toggle successful');
+                    await loadAll();
+                } else {
+                    console.error('Toggle failed:', res.status);
+                    alert('Error marking day');
+                }
+            } catch (error) {
+                console.error('Error toggling day:', error);
+                alert('Error marking day');
+            }
         }
 
         function renderStats() {
@@ -328,10 +411,10 @@
             tasks.forEach(t => {
                 const done = Object.entries(completions).filter(([k,v]) => k.startsWith(t.id+'-') && v).length;
                 const dur = taskDurations[t.id]?.duration || 30;
-                const pct = Math.round((done/dur)*100);
+                const pct = ((done/dur)*100).toFixed(2); // ✅ 2 decimal places
                 html += `<div class="stat"><div class="stat-num" style="color:${t.color}">${pct}%</div><div class="stat-name">${t.name}</div></div>`;
             });
-            document.getElementById('stats').innerHTML = html || '<p style="text-align:center;color:#94a3b8">Add tasks</p>';
+            document.getElementById('stats').innerHTML = html || '<p>Add tasks</p>';
         }
 
         function renderCharts() {
@@ -340,7 +423,7 @@
             const barData = tasks.map(t => {
                 const done = Object.entries(completions).filter(([k,v]) => k.startsWith(t.id+'-') && v).length;
                 const dur = taskDurations[t.id]?.duration || 30;
-                return Math.round((done/dur)*100);
+                return parseFloat(((done/dur)*100).toFixed(2)); // ✅ Decimal
             });
             if (window.barChart) window.barChart.destroy();
             window.barChart = new Chart(document.getElementById('line'), {
@@ -351,7 +434,7 @@
             const pieData = tasks.map(t => {
                 const done = Object.entries(completions).filter(([k,v]) => k.startsWith(t.id+'-') && v).length;
                 const dur = taskDurations[t.id]?.duration || 30;
-                return Math.round((done/dur)*100);
+                return parseFloat(((done/dur)*100).toFixed(2)); // ✅ Decimal
             });
             if (window.pieChart) window.pieChart.destroy();
             window.pieChart = new Chart(document.getElementById('pie'), {
